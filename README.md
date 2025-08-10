@@ -13,3 +13,5 @@ This plugin does not have a `setup` function. Simply ensure it is in the
 runtimepath (via plugin manager or other). The menu is opened via calling
 `list_bufs` function on the "bufs" module. Configuration is done by
 modifying the `config` table on the "bufs" module directly.
+
+<img width="690" height="530" alt="image" src="https://github.com/user-attachments/assets/d946b41e-b93a-4b4f-a1a3-1fb8a50d3cd9" />
