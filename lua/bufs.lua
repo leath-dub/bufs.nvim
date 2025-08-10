@@ -22,10 +22,17 @@ vim.api.nvim_create_autocmd("BufDelete", {
     local bufnm = vim.fn.bufname(args.buf)
     local tag = M.state.bufnm_totag[bufnm]
     if tag then
+      -- decrement global ref count for tag
       for tagk, refc in pairs(M.state.tag_torefc) do
         if tagk == tag then
           M.state.tag_torefc[tagk] = refc - 1
           assert(M.state.tag_torefc[tagk] >= 0)
+        end
+      end
+      -- decrement local ref counts for buffers using the same tag
+      for obuf, tagk in pairs(M.state.bufnm_totag) do
+        if tagk == tag then
+          M.state.bufnm_toref[obuf] = math.max(0, M.state.bufnm_toref[obuf] - 1)
         end
       end
     end
@@ -89,7 +96,7 @@ function M.list_bufs()
     vim.keymap.set("n", km, function()
       close()
       vim.schedule(function() vim.cmd.buffer(bufnr) end)
-    end, { buffer = wbuf })
+    end, { nowait = true, buffer = wbuf })
     local entry = km .. ln
 
     table.insert(lines, entry)
