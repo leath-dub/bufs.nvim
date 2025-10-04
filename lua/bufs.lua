@@ -117,7 +117,6 @@ function M.list_bufs()
     height = height,
     row = win_height,
     col = 0,
-    border = "single",
     style = "minimal",
     relative = "editor",
     focusable = false,
