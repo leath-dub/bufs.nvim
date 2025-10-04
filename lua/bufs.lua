@@ -13,23 +13,19 @@ M.state = {
 
 local H = {}
 
-H.cache = {
-  guicursor = nil,
-}
-
 vim.api.nvim_create_autocmd("BufDelete", {
   callback = function (args)
     local bufnm = vim.fn.bufname(args.buf)
     local tag = M.state.bufnm_totag[bufnm]
     if tag then
-      -- decrement global ref count for tag
+      -- Decrement global ref count for tag
       for tagk, refc in pairs(M.state.tag_torefc) do
         if tagk == tag then
           M.state.tag_torefc[tagk] = refc - 1
           assert(M.state.tag_torefc[tagk] >= 0)
         end
       end
-      -- decrement local ref counts for buffers using the same tag
+      -- Decrement local ref counts for buffers using the same tag
       for obuf, tagk in pairs(M.state.bufnm_totag) do
         if tagk == tag then
           M.state.bufnm_toref[obuf] = math.max(0, M.state.bufnm_toref[obuf] - 1)
@@ -55,17 +51,16 @@ function M.list_bufs()
     M.state_init()
   end
 
+  local ns = vim.api.nvim_create_namespace("bufs")
+
   local wbuf = vim.api.nvim_create_buf(false, true)
   vim.bo[wbuf].bufhidden = 'wipe'
 
   local width = 0
-  local lines = {}
+  local entries = {}
 
   local function close()
     H.close_windows_with(wbuf)
-    -- cursor hide hack restoration
-    if H.cache.guicursor == '' then vim.cmd('set guicursor=a: | redraw') end
-    pcall(function() vim.o.guicursor = H.cache.guicursor end)
   end
 
   vim.keymap.set("n", "q", close, { buffer = wbuf })
@@ -97,34 +92,53 @@ function M.list_bufs()
       close()
       vim.schedule(function() vim.cmd.buffer(bufnr) end)
     end, { nowait = true, buffer = wbuf })
-    local entry = km .. ln
+    local entry = { km, ln }
 
-    table.insert(lines, entry)
-    width = math.max(width, #entry)
+    table.insert(entries, entry)
+    width = math.max(width, #entry[1] + #entry[2] + 1)
+  end
+
+  local lines = {}
+  for _, entry in ipairs(entries) do
+    local km = entry[1]
+    local data = entry[2]
+    table.insert(lines, data .. (" "):rep(width - #data - 1) .. km)
   end
 
   local win_height = H.window_get_height()
-  local height = math.min(#lines, win_height)
+  local height = math.min(#entries, win_height)
 
   vim.api.nvim_buf_set_lines(wbuf, 0, height, false, lines)
   vim.bo[wbuf].modifiable = false
 
-  -- cursor hide hack
-  H.cache.guicursor = vim.o.guicursor
-  vim.o.guicursor = 'a:BufsCursor'
-
-  vim.api.nvim_set_hl(0, "BufsCursor", { blend = 100, nocombine = true })
-
   local wid = vim.api.nvim_open_win(wbuf, true, {
     anchor = "SW",
-    width = width,
+    width = width + 1,
     height = height,
     row = win_height,
     col = 0,
     border = "single",
     style = "minimal",
     relative = "editor",
+    hide = true,
+    focusable = false,
   })
+  vim.api.nvim_set_current_win(wid)
+
+  for i = 1, #lines do
+    local km = entries[i][1]
+    local data = entries[i][2]
+    local offset = #data + (width - #data - 1)
+    local len = #km
+    local startpos = { i - 1, offset }
+    local endpos = { i - 1, offset + len }
+    vim.hl.range(wbuf, ns, "Number", startpos, endpos)
+    -- vim.api.nvim_buf_set_extmark(wbuf, ns, i - 1, offset, {
+    --   end_line = i - 1,
+    --   end_col = offset + len,
+    --   hl_group = "Number",
+    -- })
+  end
 end
 
 H.window_get_height = function()
@@ -134,7 +148,7 @@ H.window_get_height = function()
 end
 
 H.close_windows_with = function(bufnr)
-  -- close all windows looking at the buffer list buffer
+  -- Close all windows looking at the buffer list buffer
   -- this is better than storing win_id and hoping it stays in sync
   for _, win in ipairs(vim.api.nvim_list_wins()) do
     if vim.api.nvim_win_is_valid(win) then
