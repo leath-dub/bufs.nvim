@@ -120,7 +120,6 @@ function M.list_bufs()
     border = "single",
     style = "minimal",
     relative = "editor",
-    hide = true,
     focusable = false,
   })
   vim.api.nvim_set_current_win(wid)
